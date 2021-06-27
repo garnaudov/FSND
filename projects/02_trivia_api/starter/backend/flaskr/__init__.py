@@ -47,7 +47,6 @@ def create_app(test_config=None):
             'categories': [category.type for category in categories]
         })
 
-
     @app.route('/questions')
     def retrieve_questions():
         selection = Question.query.order_by(Question.id).all()
@@ -78,37 +77,60 @@ def create_app(test_config=None):
             })
         abort(404)
 
-    '''
-    @TODO: 
-    Create an endpoint to POST a new question, 
-    which will require the question and answer text, 
-    category, and difficulty score.
+    @app.route("/questions", methods=['POST'])
+    def add_question():
+        body = request.get_json()
 
-    TEST: When you submit a question on the "Add" tab, 
-    the form will clear and the question will appear at the end of the last page
-    of the questions list in the "List" tab.  
-    '''
+        new_question = body.get('question', None)
+        new_answer = body.get('answer', None)
+        new_difficulty = body.get('difficulty', None)
+        new_category = body.get('category', None)
 
-    '''
-    @TODO: 
-    Create a POST endpoint to get questions based on a search term. 
-    It should return any questions for whom the search term 
-    is a substring of the question. 
+        try:
+            question = Question(question=new_question, answer=new_answer,
+                                difficulty=new_difficulty, category=new_category)
+            question.insert()
 
-    TEST: Search by any phrase. The questions list will update to include 
-    only question that include that string within their question. 
-    Try using the word "title" to start. 
-    '''
+            return jsonify({
+                'success': True,
+                'created': question.id,
+            })
 
-    '''
-    @TODO: 
-    Create a GET endpoint to get questions based on category. 
+        except:
+            abort(404)
 
-    TEST: In the "List" tab / main screen, clicking on one of the 
-    categories in the left column will cause only questions of that 
-    category to be shown. 
-    '''
+    @app.route('/questions/search', methods=['POST'])
+    def search_questions():
+        body = request.get_json()
+        search_term = body.get('searchTerm', None)
 
+        if search_term:
+            search_results = Question.query.filter(
+                Question.question.ilike(f'%{search_term}%')).all()
+
+            return jsonify({
+                'success': True,
+                'questions': [question.format() for question in search_results],
+                'total_questions': len(search_results),
+                'current_category': None
+            })
+        abort(404)
+
+    @app.route('/categories/<int:category_id>/questions', methods=['GET'])
+    def retrieve_questions_by_category(category_id):
+
+        questions = Question.query.filter(
+            Question.category == category_id).all()
+
+        if len(questions) == 0:
+            abort(404)
+
+        return jsonify({
+            'success': True,
+            'questions': [question.format() for question in questions],
+            'total_questions': len(questions),
+            'current_category': category_id
+        })
 
     '''
     @TODO: 
@@ -127,5 +149,5 @@ def create_app(test_config=None):
     Create error handlers for all expected errors 
     including 404 and 422. 
     '''
-  
+
     return app
